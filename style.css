@@ -2,8 +2,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --chrome: 150px;
+}
+
 html, body {
   height: 100%;
+  width: 100%;
   background: #000;
   color: #ffd54a;
   font-family: 'Press Start 2P', 'Courier New', monospace;
@@ -11,14 +16,25 @@ html, body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .frame {
+  width: min(100vw - 10px, 500px);
   border: 4px solid #ffd54a;
-  padding: 16px 18px 14px;
+  padding: 14px 16px 12px;
   background: #050015;
   box-shadow: 0 0 0 4px #000, 0 0 24px rgba(255, 213, 74, 0.18);
   border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .title-bar {
@@ -37,6 +53,7 @@ html, body {
   font-size: 9px;
   margin-bottom: 8px;
   color: #fff;
+  flex-wrap: nowrap;
 }
 
 .hud-cell {
@@ -44,7 +61,7 @@ html, body {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  min-width: 80px;
+  min-width: 0;
 }
 
 .hud-cell .label {
@@ -54,12 +71,13 @@ html, body {
 
 #lives {
   display: inline-flex;
-  gap: 4px;
+  gap: 3px;
+  flex-wrap: wrap;
 }
 
 .life-icon {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   background: #ffd54a;
   border-radius: 50%;
   box-shadow: inset -2px -2px 0 #b8860b;
@@ -69,13 +87,21 @@ html, body {
   position: relative;
   background: #000;
   border: 2px solid #1a1a3a;
+  width: min(100%, calc((100vh - var(--chrome)) * 456 / 528));
+  width: min(100%, calc((100dvh - var(--chrome)) * 456 / 528));
+  aspect-ratio: 456 / 528;
+  margin: 0 auto;
   image-rendering: pixelated;
+  touch-action: none;
 }
 
 canvas {
   display: block;
+  width: 100%;
+  height: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  touch-action: none;
 }
 
 .overlay {
@@ -115,4 +141,41 @@ canvas {
   color: #888;
   margin-top: 10px;
   letter-spacing: 1px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ctl-touch { display: none; width: 100%; text-align: center; }
+
+@media (hover: none) and (pointer: coarse) {
+  .ctl-key { display: none; }
+  .ctl-touch { display: inline; }
+}
+
+@media (max-width: 480px) {
+  :root { --chrome: 120px; }
+  .frame {
+    padding: 8px 10px 8px;
+    border-width: 3px;
+    width: min(100vw - 6px, 500px);
+  }
+  .title-bar { font-size: 13px; margin-bottom: 6px; letter-spacing: 2px; }
+  .hud { font-size: 7px; gap: 4px; margin-bottom: 6px; }
+  .hud-cell { gap: 3px; }
+  .hud-cell .label { font-size: 6px; }
+  .life-icon { width: 9px; height: 9px; }
+  .controls { font-size: 7px; margin-top: 6px; letter-spacing: 0; }
+  .overlay { font-size: 10px; gap: 10px; padding: 12px; }
+  .overlay .big { font-size: 16px; }
+}
+
+@media (max-height: 700px) and (max-width: 480px) {
+  .title-bar { display: none; }
+  :root { --chrome: 95px; }
+}
+
+@media (orientation: landscape) and (max-height: 480px) {
+  :root { --chrome: 80px; }
+  .title-bar { display: none; }
+  .controls { font-size: 6px; margin-top: 4px; }
 }

@@ -269,10 +269,81 @@
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') d = DIRS.RIGHT;
     if (d && player) {
       e.preventDefault();
-      player.next = d;
-      // immediate reverse is allowed any time
-      if (player.dir.x === -d.x && player.dir.y === -d.y) player.dir = d;
+      setPlayerNext(d);
     }
+  });
+
+  function setPlayerNext(d) {
+    if (!player) return;
+    player.next = d;
+    // immediate reverse is allowed any time
+    if (player.dir.x === -d.x && player.dir.y === -d.y) player.dir = d;
+  }
+
+  // ---------- Touch / swipe input ----------
+  const stage = document.getElementById('stage');
+  let touchStart = null;
+  let touchMoved = false;
+  const SWIPE_THRESHOLD = 18; // CSS pixels
+
+  function handleTap() {
+    if (mode === 'title' || mode === 'gameover') {
+      startNewGame();
+    } else if (mode === 'play') {
+      paused = !paused;
+      if (paused) showOverlay('<div class="big">PAUSED</div><div class="blink">TAP TO RESUME</div>');
+      else hideOverlay();
+    } else if (paused) {
+      paused = false;
+      hideOverlay();
+    }
+  }
+
+  function applySwipe(dx, dy) {
+    let d;
+    if (Math.abs(dx) > Math.abs(dy)) d = dx > 0 ? DIRS.RIGHT : DIRS.LEFT;
+    else d = dy > 0 ? DIRS.DOWN : DIRS.UP;
+    setPlayerNext(d);
+  }
+
+  stage.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    touchStart = { x: t.clientX, y: t.clientY };
+    touchMoved = false;
+  }, { passive: false });
+
+  stage.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!touchStart) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) >= SWIPE_THRESHOLD) {
+      applySwipe(dx, dy);
+      touchStart = { x: t.clientX, y: t.clientY };
+      touchMoved = true;
+    }
+  }, { passive: false });
+
+  let lastTouchTs = 0;
+  stage.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (!touchMoved) handleTap();
+    touchStart = null;
+    touchMoved = false;
+    lastTouchTs = Date.now();
+  }, { passive: false });
+
+  stage.addEventListener('touchcancel', () => {
+    touchStart = null;
+    touchMoved = false;
+    lastTouchTs = Date.now();
+  });
+
+  // Mouse fallback for desktop (suppressed within 500ms of a touch).
+  stage.addEventListener('click', () => {
+    if (Date.now() - lastTouchTs > 500) handleTap();
   });
 
   // ---------- Movement helpers ----------

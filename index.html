@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
   <title>Cowgill-Man</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,15 +19,17 @@
       <div class="hud-cell"><span class="label">LEVEL</span><span id="level">01</span></div>
       <div class="hud-cell"><span class="label">LIVES</span><span id="lives"></span></div>
     </div>
-    <div class="stage">
+    <div class="stage" id="stage">
       <canvas id="game" width="456" height="528"></canvas>
       <div id="overlay" class="overlay"></div>
     </div>
     <div class="controls">
-      <span>&larr; &uarr; &darr; &rarr; / WASD : MOVE</span>
-      <span>SPACE / ENTER : START &middot; PAUSE</span>
+      <span class="ctl-key">&larr; &uarr; &darr; &rarr; / WASD : MOVE</span>
+      <span class="ctl-key">SPACE / ENTER : START &middot; PAUSE</span>
+      <span class="ctl-touch">SWIPE : MOVE &middot; TAP : START / PAUSE</span>
     </div>
   </div>
   <script src="game.js"></script>
 </body>
 </html>
+
