@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #000;
+  color: #ffd54a;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.frame {
+  border: 4px solid #ffd54a;
+  padding: 16px 18px 14px;
+  background: #050015;
+  box-shadow: 0 0 0 4px #000, 0 0 24px rgba(255, 213, 74, 0.18);
+  border-radius: 6px;
+}
+
+.title-bar {
+  text-align: center;
+  font-size: 18px;
+  letter-spacing: 3px;
+  color: #ffd54a;
+  text-shadow: 2px 2px 0 #b8860b;
+  margin-bottom: 10px;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.hud-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.hud-cell .label {
+  color: #ff5c5c;
+  font-size: 8px;
+}
+
+#lives {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.life-icon {
+  width: 14px;
+  height: 14px;
+  background: #ffd54a;
+  border-radius: 50%;
+  box-shadow: inset -2px -2px 0 #b8860b;
+}
+
+.stage {
+  position: relative;
+  background: #000;
+  border: 2px solid #1a1a3a;
+  image-rendering: pixelated;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #000;
+  gap: 14px;
+  padding: 20px;
+}
+
+.overlay.hidden { display: none; }
+
+.overlay .big {
+  font-size: 22px;
+  color: #ffd54a;
+}
+
+.overlay .blink {
+  animation: blink 1s steps(2, start) infinite;
+  color: #fff;
+}
+
+@keyframes blink { to { visibility: hidden; } }
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: #888;
+  margin-top: 10px;
+  letter-spacing: 1px;
+}

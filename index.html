@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cowgill-Man</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="frame">
+    <div class="title-bar">COWGILL-MAN</div>
+    <div class="hud">
+      <div class="hud-cell"><span class="label">1UP</span><span id="score">000000</span></div>
+      <div class="hud-cell"><span class="label">HI-SCORE</span><span id="highscore">000000</span></div>
+      <div class="hud-cell"><span class="label">LEVEL</span><span id="level">01</span></div>
+      <div class="hud-cell"><span class="label">LIVES</span><span id="lives"></span></div>
+    </div>
+    <div class="stage">
+      <canvas id="game" width="456" height="528"></canvas>
+      <div id="overlay" class="overlay"></div>
+    </div>
+    <div class="controls">
+      <span>&larr; &uarr; &darr; &rarr; / WASD : MOVE</span>
+      <span>SPACE / ENTER : START &middot; PAUSE</span>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
