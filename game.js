@@ -52,20 +52,30 @@
   const ALL_DIRS = [DIRS.UP, DIRS.DOWN, DIRS.LEFT, DIRS.RIGHT];
 
   const COLORS = {
-    wall:       '#1133aa',
-    wallEdge:   '#5577ff',
+    wall:       '#5a2a1a',
+    wallEdge:   '#cc7a3a',
     pellet:     '#ffd54a',
     superGem:   '#ff8eea',
-    cowgill:    '#ffd54a',
-    cowgillSkin:'#ffe0a0',
-    hat:        '#7a3a12',
-    bandana:    '#cc2222',
-    gobBody:    ['#e63946', '#ff85c1', '#56cfe1', '#ff9f1c'],
-    gobScared:  '#3344ff',
-    gobScaredEnd:'#ffffff',
-    eyes:       '#ffffff',
-    pupils:     '#000022',
-    bonus:      '#ffeb3b',
+    skin:       '#ffd1a0',
+    skinShade:  '#cc8a6a',
+    shirt:      '#cc2222',
+    shirtShade: '#7a1212',
+    hat:        '#4a2410',
+    hatTop:     '#7a3a18',
+    boot:       '#2a1505',
+    star:       '#ffe04a',
+    mustache:   '#2a1505',
+    gobBody: [
+      { main: '#5aa845', shade: '#2f6624', accent: '#9be066' }, // green
+      { main: '#7a4ec9', shade: '#4a2885', accent: '#c9a4ff' }, // purple
+      { main: '#c97a2e', shade: '#7d4814', accent: '#ffc77a' }, // ochre
+      { main: '#3aa3b8', shade: '#1d6573', accent: '#9be6f0' }, // teal
+    ],
+    gobScared:    '#d63aa1',
+    gobScaredAlt: '#ffe25a',
+    gobEyes:      '#fff7c0',
+    gobPupils:    '#3a0a14',
+    bonus:        '#ffeb3b',
   };
 
   const SCORES = {
@@ -737,117 +747,238 @@
 
   function drawPlayer() {
     if (!player) return;
-    const x = player.x, y = player.y;
-    const r = TILE / 2 - 2;
-    // Body
-    ctx.fillStyle = COLORS.cowgill;
-    if (player.alive && (player.dir.x || player.dir.y)) {
-      const open = (Math.sin(player.mouth) + 1) / 2 * 0.55 + 0.05;
-      let baseAng = 0;
-      if (player.facing === 'right') baseAng = 0;
-      else if (player.facing === 'down') baseAng = Math.PI / 2;
-      else if (player.facing === 'left') baseAng = Math.PI;
-      else if (player.facing === 'up') baseAng = -Math.PI / 2;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.arc(x, y, r, baseAng + open, baseAng - open + Math.PI * 2);
-      ctx.closePath();
-      ctx.fill();
-    } else {
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // Cowboy hat
+    const x = Math.round(player.x);
+    const y = Math.round(player.y);
+    const moving = player.alive && (player.dir.x !== 0 || player.dir.y !== 0);
+    const step = Math.floor(player.mouth * 1.2) % 2; // leg shuffle
+    const bob = moving ? (step ? 0 : -1) : 0;
+
+    // Hat crown
+    ctx.fillStyle = COLORS.hatTop;
+    ctx.fillRect(x - 4, y - 12 + bob, 8, 3);
+    ctx.fillRect(x - 3, y - 13 + bob, 6, 1);
+    // Hat dent (top crease)
     ctx.fillStyle = COLORS.hat;
-    ctx.fillRect(x - 8, y - r - 1, 16, 3);  // brim
-    ctx.fillRect(x - 5, y - r - 6, 10, 5);  // crown
-    ctx.fillStyle = COLORS.bandana;
-    ctx.fillRect(x - 4, y - r - 4, 8, 1);   // hatband
-    // Eye
+    ctx.fillRect(x - 1, y - 13 + bob, 2, 1);
+    // Hat brim
+    ctx.fillStyle = COLORS.hat;
+    ctx.fillRect(x - 8, y - 9 + bob, 16, 2);
+    // Hat band
+    ctx.fillStyle = '#1a0a02';
+    ctx.fillRect(x - 4, y - 10 + bob, 8, 1);
+
+    // Head / face
+    ctx.fillStyle = COLORS.skin;
+    ctx.fillRect(x - 4, y - 7 + bob, 8, 6);
+    // Jaw shading
+    ctx.fillStyle = COLORS.skinShade;
+    ctx.fillRect(x - 4, y - 1 + bob, 8, 1);
+
+    // Eyes — track facing direction
+    ctx.fillStyle = '#1a0a02';
     if (player.alive) {
-      ctx.fillStyle = '#222';
-      let ex = x, ey = y - 3;
-      if (player.facing === 'right') ex += 3;
-      else if (player.facing === 'left') ex -= 3;
-      else if (player.facing === 'down') ey += 1;
-      ctx.fillRect(ex - 1, ey - 1, 2, 2);
+      let lx = -2, rx = 2, ey = -5;
+      if (player.facing === 'right') { lx = -1; rx = 3; }
+      else if (player.facing === 'left') { lx = -3; rx = 1; }
+      else if (player.facing === 'down') { ey = -4; }
+      else if (player.facing === 'up')   { ey = -6; }
+      ctx.fillRect(x + lx, y + ey + bob, 1, 2);
+      ctx.fillRect(x + rx, y + ey + bob, 1, 2);
+    } else {
+      // X eyes when knocked out
+      ctx.fillStyle = '#1a0a02';
+      ctx.fillRect(x - 3, y - 5 + bob, 1, 1);
+      ctx.fillRect(x - 2, y - 4 + bob, 1, 1);
+      ctx.fillRect(x - 3, y - 3 + bob, 1, 1);
+      ctx.fillRect(x + 2, y - 5 + bob, 1, 1);
+      ctx.fillRect(x + 3, y - 4 + bob, 1, 1);
+      ctx.fillRect(x + 2, y - 3 + bob, 1, 1);
+    }
+
+    // Mustache
+    ctx.fillStyle = COLORS.mustache;
+    ctx.fillRect(x - 3, y - 3 + bob, 6, 1);
+    ctx.fillRect(x - 4, y - 3 + bob, 1, 2);
+    ctx.fillRect(x + 3, y - 3 + bob, 1, 2);
+
+    // Bandana around neck
+    ctx.fillStyle = COLORS.shirt;
+    ctx.fillRect(x - 4, y + 0 + bob, 8, 2);
+    ctx.fillStyle = COLORS.shirtShade;
+    ctx.fillRect(x - 4, y + 1 + bob, 8, 1);
+
+    // Vest / shirt body
+    ctx.fillStyle = COLORS.shirt;
+    ctx.fillRect(x - 5, y + 2 + bob, 10, 6);
+    ctx.fillStyle = COLORS.shirtShade;
+    ctx.fillRect(x - 5, y + 7 + bob, 10, 1);
+    ctx.fillRect(x - 5, y + 2 + bob, 1, 6);
+    ctx.fillRect(x + 4, y + 2 + bob, 1, 6);
+
+    // Sheriff star
+    ctx.fillStyle = COLORS.star;
+    ctx.fillRect(x - 1, y + 4 + bob, 2, 2);
+    ctx.fillRect(x, y + 3 + bob, 1, 1);
+    ctx.fillRect(x, y + 6 + bob, 1, 1);
+    ctx.fillRect(x - 2, y + 5 + bob, 1, 1);
+    ctx.fillRect(x + 2, y + 5 + bob, 1, 1);
+
+    // Boots
+    ctx.fillStyle = COLORS.boot;
+    if (moving && step === 0) {
+      ctx.fillRect(x - 5, y + 8, 4, 2);
+      ctx.fillRect(x + 1, y + 9, 4, 2);
+    } else if (moving && step === 1) {
+      ctx.fillRect(x - 5, y + 9, 4, 2);
+      ctx.fillRect(x + 1, y + 8, 4, 2);
+    } else {
+      ctx.fillRect(x - 5, y + 8, 4, 2);
+      ctx.fillRect(x + 1, y + 8, 4, 2);
     }
   }
 
   function drawGoblin(g) {
-    const x = g.x, y = g.y;
-    const r = TILE / 2 - 2;
+    const x = Math.round(g.x);
+    const y = Math.round(g.y);
+    const step = Math.floor(frame / 6) % 2;
+    const bob = step ? -1 : 0;
 
     if (g.state === 'eaten') {
-      // Just eyes flying
-      drawGoblinEyes(x, y, g);
+      drawDefeatedGoblin(x, y, g);
       return;
     }
-    let body;
-    if (g.state === 'scared') {
-      const blinking = powerTimer < 2 && Math.floor(frame / 6) % 2 === 0;
-      body = blinking ? COLORS.gobScaredEnd : COLORS.gobScared;
-    } else {
-      body = COLORS.gobBody[g.colorIndex % COLORS.gobBody.length];
-    }
-    ctx.fillStyle = body;
-    // Domed top
-    ctx.beginPath();
-    ctx.arc(x, y - 1, r, Math.PI, 0);
-    ctx.lineTo(x + r, y + r - 1);
-    // skirt zigzag
-    const teeth = 4;
-    for (let i = teeth - 1; i >= 0; i--) {
-      const px = x + r - ((teeth - i) * (2 * r / teeth));
-      const py = y + r - ((i % 2 === 0) ? 0 : 4);
-      ctx.lineTo(px, py);
-    }
-    ctx.lineTo(x - r, y - 1);
-    ctx.closePath();
-    ctx.fill();
 
-    // Pointy goblin ears
-    ctx.fillStyle = body;
-    ctx.beginPath();
-    ctx.moveTo(x - r, y - 2);
-    ctx.lineTo(x - r - 3, y - 8);
-    ctx.lineTo(x - r + 2, y - 5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x + r, y - 2);
-    ctx.lineTo(x + r + 3, y - 8);
-    ctx.lineTo(x + r - 2, y - 5);
-    ctx.closePath();
-    ctx.fill();
+    const palette = COLORS.gobBody[g.colorIndex % COLORS.gobBody.length];
+    let main, shade, accent;
+    if (g.state === 'scared') {
+      const ending = powerTimer > 0 && powerTimer < 2;
+      const blink = ending && Math.floor(frame / 5) % 2 === 0;
+      main   = blink ? COLORS.gobScaredAlt : COLORS.gobScared;
+      shade  = blink ? '#a36316' : '#7a1466';
+      accent = '#ffffff';
+    } else {
+      main = palette.main; shade = palette.shade; accent = palette.accent;
+    }
+
+    // Long pointy ears (drawn behind head)
+    ctx.fillStyle = main;
+    // left ear
+    ctx.fillRect(x - 9, y - 10 + bob, 2, 2);
+    ctx.fillRect(x - 8, y - 8 + bob, 2, 2);
+    ctx.fillRect(x - 7, y - 6 + bob, 3, 3);
+    // right ear
+    ctx.fillRect(x + 7, y - 10 + bob, 2, 2);
+    ctx.fillRect(x + 6, y - 8 + bob, 2, 2);
+    ctx.fillRect(x + 4, y - 6 + bob, 3, 3);
+    // ear shade
+    ctx.fillStyle = shade;
+    ctx.fillRect(x - 6, y - 5 + bob, 1, 2);
+    ctx.fillRect(x + 5, y - 5 + bob, 1, 2);
+
+    // Hunched body (rounded rectangle, top wider than bottom, NOT a dome+skirt)
+    ctx.fillStyle = main;
+    ctx.fillRect(x - 6, y + 0, 12, 6);
+    ctx.fillRect(x - 5, y + 6, 10, 2);
+    ctx.fillRect(x - 4, y - 1, 8, 1);
+    // belly highlight
+    ctx.fillStyle = accent;
+    ctx.fillRect(x - 3, y + 2, 6, 2);
+
+    // Head (set on shoulders, oval-ish)
+    ctx.fillStyle = main;
+    ctx.fillRect(x - 5, y - 7 + bob, 10, 6);
+    ctx.fillRect(x - 4, y - 8 + bob, 8, 1);
+    ctx.fillRect(x - 6, y - 5 + bob, 1, 2);
+    ctx.fillRect(x + 5, y - 5 + bob, 1, 2);
+
+    // Brow ridge
+    ctx.fillStyle = shade;
+    ctx.fillRect(x - 4, y - 6 + bob, 8, 1);
+
+    // Big crooked nose
+    ctx.fillStyle = shade;
+    ctx.fillRect(x - 1, y - 4 + bob, 2, 3);
+    ctx.fillRect(x, y - 5 + bob, 1, 1);
 
     if (g.state === 'scared') {
-      // Frowny face
+      // Wide worried eyes
       ctx.fillStyle = '#fff';
-      ctx.fillRect(x - 4, y - 2, 2, 2);
-      ctx.fillRect(x + 2, y - 2, 2, 2);
-      ctx.fillRect(x - 5, y + 4, 2, 1);
-      ctx.fillRect(x - 2, y + 3, 2, 1);
-      ctx.fillRect(x + 1, y + 4, 2, 1);
-      ctx.fillRect(x + 4, y + 3, 2, 1);
+      ctx.fillRect(x - 4, y - 5 + bob, 3, 3);
+      ctx.fillRect(x + 1, y - 5 + bob, 3, 3);
+      ctx.fillStyle = '#1a0a14';
+      ctx.fillRect(x - 3, y - 4 + bob, 1, 1);
+      ctx.fillRect(x + 2, y - 4 + bob, 1, 1);
+      // Open "O" mouth
+      ctx.fillStyle = '#1a0a14';
+      ctx.fillRect(x - 1, y - 1 + bob, 2, 2);
+      // Sweat drop
+      ctx.fillStyle = '#9be6f0';
+      ctx.fillRect(x + 6, y - 4 + bob, 1, 2);
+      ctx.fillRect(x + 6, y - 6 + bob, 1, 1);
     } else {
-      drawGoblinEyes(x, y, g);
-      // Little fang
+      // Glaring yellow eyes
+      ctx.fillStyle = COLORS.gobEyes;
+      ctx.fillRect(x - 4, y - 5 + bob, 3, 2);
+      ctx.fillRect(x + 1, y - 5 + bob, 3, 2);
+      ctx.fillStyle = COLORS.gobPupils;
+      let dx = 0, dy = 0;
+      if (g.dir) { dx = Math.sign(g.dir.x); dy = Math.sign(g.dir.y); }
+      ctx.fillRect(x - 3 + dx, y - 5 + bob + dy, 1, 2);
+      ctx.fillRect(x + 2 + dx, y - 5 + bob + dy, 1, 2);
+
+      // Snarling mouth with two fangs
+      ctx.fillStyle = '#1a0a14';
+      ctx.fillRect(x - 3, y - 1 + bob, 6, 2);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(x - 1, y + 4, 2, 3);
+      ctx.fillRect(x - 2, y + 0 + bob, 1, 2);
+      ctx.fillRect(x + 1, y + 0 + bob, 1, 2);
     }
+
+    // Clawed feet (alternate when moving)
+    ctx.fillStyle = shade;
+    if (step === 0) {
+      ctx.fillRect(x - 5, y + 8, 3, 2);
+      ctx.fillRect(x + 2, y + 7, 3, 2);
+    } else {
+      ctx.fillRect(x - 5, y + 7, 3, 2);
+      ctx.fillRect(x + 2, y + 8, 3, 2);
+    }
+    // Claws
+    ctx.fillStyle = '#fff8d8';
+    ctx.fillRect(x - 5, y + 9, 1, 1);
+    ctx.fillRect(x - 3, y + 9, 1, 1);
+    ctx.fillRect(x + 2, y + 9, 1, 1);
+    ctx.fillRect(x + 4, y + 9, 1, 1);
   }
 
-  function drawGoblinEyes(x, y, g) {
-    ctx.fillStyle = COLORS.eyes;
-    ctx.fillRect(x - 5, y - 3, 4, 5);
-    ctx.fillRect(x + 1, y - 3, 4, 5);
-    ctx.fillStyle = COLORS.pupils;
-    let dx = 0, dy = 0;
-    if (g.dir) { dx = Math.sign(g.dir.x); dy = Math.sign(g.dir.y); }
-    ctx.fillRect(x - 4 + dx, y - 1 + dy, 2, 2);
-    ctx.fillRect(x + 2 + dx, y - 1 + dy, 2, 2);
+  function drawDefeatedGoblin(x, y, g) {
+    // Translucent fading wisp drifting back to pen — clearly not a "pair of eyes".
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#cfd9ff';
+    ctx.fillRect(x - 4, y - 4, 8, 8);
+    ctx.fillRect(x - 3, y - 6, 6, 2);
+    ctx.fillRect(x - 5, y - 2, 1, 4);
+    ctx.fillRect(x + 4, y - 2, 1, 4);
+    // wispy tail
+    const phase = Math.floor(frame / 5) % 3;
+    ctx.fillRect(x - 4 + phase * 2, y + 5, 2, 2);
+    ctx.fillRect(x + 2 - phase * 2, y + 6, 2, 1);
+    ctx.restore();
+    // X eyes
+    ctx.fillStyle = '#ff4a4a';
+    ctx.fillRect(x - 3, y - 3, 1, 1);
+    ctx.fillRect(x - 2, y - 2, 1, 1);
+    ctx.fillRect(x - 3, y - 1, 1, 1);
+    ctx.fillRect(x - 1, y - 3, 1, 1);
+    ctx.fillRect(x - 2, y - 2, 1, 1);
+    ctx.fillRect(x - 1, y - 1, 1, 1);
+    ctx.fillRect(x + 1, y - 3, 1, 1);
+    ctx.fillRect(x + 2, y - 2, 1, 1);
+    ctx.fillRect(x + 1, y - 1, 1, 1);
+    ctx.fillRect(x + 3, y - 3, 1, 1);
+    ctx.fillRect(x + 2, y - 2, 1, 1);
+    ctx.fillRect(x + 3, y - 1, 1, 1);
   }
 
   function drawBonus() {
