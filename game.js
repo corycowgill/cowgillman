@@ -88,6 +88,71 @@
 
   const POWER_DURATION_BY_LEVEL = (lvl) => Math.max(2.5, 8 - (lvl - 1) * 0.6);
 
+  // ---------- 8-bit synthesized audio ----------
+  const audio = (() => {
+    let actx = null;
+    let muted = localStorage.getItem('cowgillMute') === '1';
+    function ensure() {
+      if (!actx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) { try { actx = new AC(); } catch (e) {} }
+      }
+      if (actx && actx.state === 'suspended') actx.resume();
+      return actx;
+    }
+    function blip(opt) {
+      if (muted) return;
+      const c = ensure();
+      if (!c) return;
+      const t = c.currentTime;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = opt.type || 'square';
+      o.frequency.setValueAtTime(opt.f0, t);
+      if (opt.f1) o.frequency.exponentialRampToValueAtTime(opt.f1, t + opt.dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(opt.vol || 0.08, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + opt.dur);
+      o.connect(g).connect(c.destination);
+      o.start(t);
+      o.stop(t + opt.dur + 0.02);
+    }
+    function seq(notes, gap = 0.1) {
+      if (muted) return;
+      notes.forEach((n, i) => setTimeout(() => blip(n), i * gap * 1000));
+    }
+    let chompT = 0;
+    return {
+      ensure,
+      isMuted: () => muted,
+      toggle() { muted = !muted; localStorage.setItem('cowgillMute', muted ? '1' : '0'); return muted; },
+      chomp() { chompT = 1 - chompT; blip({ f0: chompT ? 460 : 690, dur: 0.05, vol: 0.05 }); },
+      superGem() { blip({ f0: 440, f1: 1320, dur: 0.20, vol: 0.10 }); },
+      eatGoblin() { blip({ f0: 110, f1: 1500, dur: 0.30, vol: 0.12 }); },
+      death() { blip({ f0: 880, f1: 60, dur: 1.0, type: 'sawtooth', vol: 0.13 }); },
+      levelClear() { seq([
+        { f0: 523, dur: 0.10 }, { f0: 659, dur: 0.10 },
+        { f0: 784, dur: 0.10 }, { f0: 1047, dur: 0.20, vol: 0.10 },
+      ], 0.12); },
+      bonusGet() { seq([
+        { f0: 660, dur: 0.05, vol: 0.08 },
+        { f0: 880, dur: 0.05, vol: 0.08 },
+        { f0: 1320, dur: 0.10, vol: 0.10 },
+      ], 0.05); },
+      extraLife() { seq([
+        { f0: 392, dur: 0.07 }, { f0: 523, dur: 0.07 },
+        { f0: 659, dur: 0.07 }, { f0: 784, dur: 0.07 },
+        { f0: 1047, dur: 0.15, vol: 0.10 },
+      ], 0.08); },
+      bonusAppear() { blip({ f0: 660, f1: 1100, dur: 0.15, type: 'triangle', vol: 0.06 }); },
+      powerEnd() { blip({ f0: 220, f1: 90, dur: 0.18, type: 'sine', vol: 0.06 }); },
+      start() { seq([
+        { f0: 262, dur: 0.08 }, { f0: 330, dur: 0.08 },
+        { f0: 392, dur: 0.08 }, { f0: 523, dur: 0.14, vol: 0.10 },
+      ], 0.10); },
+    };
+  })();
+
   const canvas = document.getElementById('game');
   canvas.width = W;
   canvas.height = H;
@@ -99,6 +164,22 @@
   const $hi = document.getElementById('highscore');
   const $level = document.getElementById('level');
   const $lives = document.getElementById('lives');
+  const $muteBtn = document.getElementById('mute-btn');
+
+  function refreshMuteBtn() {
+    if (!$muteBtn) return;
+    $muteBtn.textContent = audio.isMuted() ? 'SND OFF' : 'SND ON';
+    $muteBtn.classList.toggle('muted', audio.isMuted());
+  }
+  if ($muteBtn) {
+    $muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audio.ensure();
+      audio.toggle();
+      refreshMuteBtn();
+    });
+  }
+  refreshMuteBtn();
 
   // ---------- Game state ----------
   let grid;          // 2D char array (mutable; pellets removed as eaten)
@@ -116,6 +197,9 @@
   let modeTimer;
   let bonusSpawned;  // count this level (max 2)
   let extraLifeAwarded;
+  let aiPhaseChase;
+  let aiPhaseTimer;
+  const particles = [];
   let frame = 0;
   let paused = false;
 
@@ -222,10 +306,14 @@
     bonusSpawned = 0;
     powerTimer = 0;
     goblinChain = 0;
+    aiPhaseChase = false;
+    aiPhaseTimer = 5;
+    particles.length = 0;
     mode = 'ready';
     modeTimer = 1.8;
     showOverlay(`<div class="big">LEVEL ${level}</div><div>READY!</div>`);
     updateHud();
+    audio.start();
   }
 
   function loseLife() {
@@ -244,23 +332,33 @@
       goblins = newGoblins();
       powerTimer = 0;
       goblinChain = 0;
+      aiPhaseChase = false;
+      aiPhaseTimer = 5;
       showOverlay('<div class="big">READY!</div>');
     }
   }
 
   function levelComplete() {
     mode = 'levelup';
-    modeTimer = 1.8;
+    modeTimer = 2.4;
     showOverlay(`<div class="big">LEVEL CLEAR!</div><div>+${level * 100} BONUS</div>`);
     score += level * 100;
     level++;
+    audio.levelClear();
   }
 
   // ---------- Input ----------
   const keys = {};
   window.addEventListener('keydown', (e) => {
+    audio.ensure();
     keys[e.key.toLowerCase()] = true;
     const k = e.key;
+    if (k === 'm' || k === 'M') {
+      e.preventDefault();
+      audio.toggle();
+      refreshMuteBtn();
+      return;
+    }
     if (k === ' ' || k === 'Enter') {
       e.preventDefault();
       if (mode === 'title' || mode === 'gameover') {
@@ -318,6 +416,7 @@
 
   stage.addEventListener('touchstart', (e) => {
     e.preventDefault();
+    audio.ensure();
     const t = e.touches[0];
     touchStart = { x: t.clientX, y: t.clientY };
     touchMoved = false;
@@ -402,9 +501,13 @@
 
   // ---------- Update logic ----------
   function update(dt) {
+    updateParticles(dt);
     if (mode === 'title' || mode === 'gameover' || paused) return;
     if (mode === 'ready' || mode === 'levelup' || mode === 'dying') {
       modeTimer -= dt;
+      if (mode === 'dying' && player) {
+        player.deathAnim = Math.min(1, 1 - modeTimer / 1.5);
+      }
       if (modeTimer <= 0) {
         if (mode === 'levelup') startLevel();
         else if (mode === 'dying') loseLife();
@@ -435,6 +538,7 @@
         setTile(c, r, ' ');
         pelletsLeft--;
         score += SCORES.pellet;
+        audio.chomp();
       } else if (t === 'o') {
         setTile(c, r, ' ');
         pelletsLeft--;
@@ -447,6 +551,8 @@
             g.dir = { x: -g.dir.x, y: -g.dir.y };
           }
         }
+        audio.superGem();
+        spawnParticles(player.x, player.y, COLORS.superGem, 14, 90);
       }
     }
 
@@ -465,6 +571,7 @@
           expires: 9 + Math.random() * 3,
         };
         bonusSpawned++;
+        audio.bonusAppear();
       }
     }
     if (bonus) {
@@ -473,7 +580,24 @@
       else if (entityCol(player) === bonus.col && entityRow(player) === bonus.row) {
         score += bonus.points;
         showFloater(bonus.col, bonus.row, '+' + bonus.points);
+        spawnParticles(player.x, player.y, COLORS.bonus, 16, 110);
+        audio.bonusGet();
         bonus = null;
+      }
+    }
+
+    // AI scatter / chase cycle (paused while a power gem is active)
+    if (powerTimer === 0) {
+      aiPhaseTimer -= dt;
+      if (aiPhaseTimer <= 0) {
+        aiPhaseChase = !aiPhaseChase;
+        aiPhaseTimer = aiPhaseChase
+          ? Math.max(8, 22 - level * 2)
+          : Math.max(2, 7 - Math.floor(level / 2));
+        // Classic behavior: goblins reverse on phase change
+        for (const g of goblins) {
+          if (g.state === 'chase') g.dir = { x: -g.dir.x, y: -g.dir.y };
+        }
       }
     }
 
@@ -484,6 +608,7 @@
         powerTimer = 0;
         for (const g of goblins) if (g.state === 'scared') g.state = 'chase';
         goblinChain = 0;
+        audio.powerEnd();
       }
     }
 
@@ -501,6 +626,10 @@
           score += pts;
           goblinChain++;
           showFloater(Math.floor(g.x / TILE), Math.floor(g.y / TILE), '+' + pts);
+          const palette = COLORS.gobBody[g.colorIndex % COLORS.gobBody.length];
+          spawnParticles(g.x, g.y, palette.accent, 14, 130);
+          spawnParticles(g.x, g.y, '#fff7c0', 6, 80);
+          audio.eatGoblin();
           g.state = 'eaten';
           g.speed = g.baseSpeed * 1.8;
         } else if (g.state === 'chase' || g.state === 'leaving' || g.state === 'pen') {
@@ -508,6 +637,8 @@
           modeTimer = 1.5;
           player.alive = false;
           player.dir = { x: 0, y: 0 };
+          player.deathAnim = 0;
+          audio.death();
           showOverlay('<div class="big">CAUGHT!</div>');
           return;
         }
@@ -518,6 +649,7 @@
     if (!extraLifeAwarded && score >= SCORES.extraLife) {
       extraLifeAwarded = true;
       lives++;
+      audio.extraLife();
     }
     hiScore = Math.max(hiScore, score);
 
@@ -536,18 +668,28 @@
     return n;
   }
 
+  // Each goblin has its own scatter corner so they fan out instead of clumping.
+  const SCATTER_CORNERS = [
+    { col: 17, row: 1 }, // 0 -> top-right
+    { col: 1,  row: 1 }, // 1 -> top-left
+    { col: 17, row: 19 },// 2 -> bottom-right
+    { col: 1,  row: 19 },// 3 -> bottom-left
+  ];
+
   function targetForGoblin(g) {
     const pcol = entityCol(player), prow = entityRow(player);
     if (g.state === 'eaten') return GOBLIN_PEN;
     if (g.state === 'scared') {
-      // Random-ish: target a corner away from player
-      const corners = [{ col: 1, row: 1 }, { col: 17, row: 1 }, { col: 1, row: 19 }, { col: 17, row: 19 }];
-      let best = corners[0], bestD = -1;
-      for (const c of corners) {
+      // Flee toward the corner farthest from the player
+      let best = SCATTER_CORNERS[0], bestD = -1;
+      for (const c of SCATTER_CORNERS) {
         const d = Math.hypot(c.col - pcol, c.row - prow);
         if (d > bestD) { best = c; bestD = d; }
       }
       return best;
+    }
+    if (!aiPhaseChase) {
+      return SCATTER_CORNERS[g.colorIndex % SCATTER_CORNERS.length];
     }
     // Chase variations per personality
     switch (g.personality) {
@@ -561,7 +703,7 @@
       }
       case 3: { // chase if far, scatter if close
         const dist = Math.hypot(g.x - player.x, g.y - player.y);
-        if (dist < TILE * 6) return { col: 1, row: 19 };
+        if (dist < TILE * 6) return SCATTER_CORNERS[3];
         return { col: pcol, row: prow };
       }
     }
@@ -693,6 +835,42 @@
     floaters.push({ x: col * TILE + TILE / 2, y: row * TILE + TILE / 2, text, life: 1.0 });
   }
 
+  // ---------- Particles ----------
+  function spawnParticles(x, y, color, count = 8, speed = 80) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = speed * (0.4 + Math.random() * 0.8);
+      particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 20,
+        color,
+        life: 0.45 + Math.random() * 0.35,
+        max: 0.8,
+        size: 1 + Math.floor(Math.random() * 2),
+      });
+    }
+  }
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 140 * dt;
+      p.vx *= 0.96;
+    }
+  }
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = Math.min(1, p.life * 2.2);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(Math.round(p.x - p.size / 2), Math.round(p.y - p.size / 2), p.size + 1, p.size + 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ---------- Drawing ----------
   function drawMaze() {
     for (let r = 0; r < ROWS; r++) {
@@ -752,6 +930,11 @@
     const moving = player.alive && (player.dir.x !== 0 || player.dir.y !== 0);
     const step = Math.floor(player.mouth * 1.2) % 2; // leg shuffle
     const bob = moving ? (step ? 0 : -1) : 0;
+
+    if (mode === 'dying' && player.deathAnim != null) {
+      drawPlayerDying(x, y, player.deathAnim);
+      return;
+    }
 
     // Hat crown
     ctx.fillStyle = COLORS.hatTop;
@@ -834,6 +1017,46 @@
     } else {
       ctx.fillRect(x - 5, y + 8, 4, 2);
       ctx.fillRect(x + 1, y + 8, 4, 2);
+    }
+  }
+
+  function drawPlayerDying(x, y, t) {
+    // t goes 0 -> 1 over 1.5s. Spin and shrink, then puff.
+    if (t < 0.85) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(t * Math.PI * 5);
+      const sc = 1 - t * 0.95;
+      ctx.scale(sc, sc);
+      // Compact stylized body using sprite parts at origin
+      ctx.fillStyle = COLORS.shirt;
+      ctx.fillRect(-5, -2, 10, 8);
+      ctx.fillStyle = COLORS.skin;
+      ctx.fillRect(-4, -7, 8, 5);
+      ctx.fillStyle = COLORS.hat;
+      ctx.fillRect(-8, -9, 16, 2);
+      ctx.fillStyle = COLORS.hatTop;
+      ctx.fillRect(-3, -12, 6, 3);
+      ctx.fillStyle = COLORS.boot;
+      ctx.fillRect(-5, 6, 10, 3);
+      ctx.fillStyle = COLORS.star;
+      ctx.fillRect(-1, 1, 2, 2);
+      ctx.restore();
+      // sparks emit while spinning out
+      if (Math.random() < 0.4) {
+        spawnParticles(x, y, COLORS.star, 1, 50);
+      }
+    } else {
+      // Final puff: a few + glyphs
+      const r = (t - 0.85) * 60;
+      ctx.fillStyle = '#ffd54a';
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3 + t * 4;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        ctx.fillRect(Math.round(px) - 1, Math.round(py), 3, 1);
+        ctx.fillRect(Math.round(px), Math.round(py) - 1, 1, 3);
+      }
     }
   }
 
@@ -1041,9 +1264,13 @@
     drawMaze();
     drawBonus();
     if (mode !== 'gameover') {
-      for (const g of goblins || []) drawGoblin(g);
+      // While dying, hide goblins for focus on death animation
+      if (mode !== 'dying') {
+        for (const g of goblins || []) drawGoblin(g);
+      }
       drawPlayer();
     }
+    drawParticles();
     drawFloaters(dt);
 
     // Power timer bar

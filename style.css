@@ -83,6 +83,24 @@ html, body {
   box-shadow: inset -2px -2px 0 #b8860b;
 }
 
+.mute-btn {
+  align-self: flex-end;
+  background: transparent;
+  border: 1px solid #ffd54a;
+  color: #ffd54a;
+  font: inherit;
+  font-size: 7px;
+  padding: 4px 6px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  border-radius: 2px;
+}
+.mute-btn:active { background: rgba(255, 213, 74, 0.2); }
+.mute-btn.muted { color: #888; border-color: #888; }
+@media (max-width: 480px) {
+  .mute-btn { font-size: 6px; padding: 3px 4px; }
+}
+
 .stage {
   position: relative;
   background: #000;
